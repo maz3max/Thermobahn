@@ -176,7 +176,7 @@ def print_cyberband(device, count):
 
 def print_fin_telegram_qr(device):
     device.qr("https://t.me/joinchat/BLReWz2rFi4LsL_uwM1yZA", escpos.constants.QR_ECLEVEL_H, size=9)
-    device.text("{:^32\n\n\n\n\n\n".format("FIN Telegram Gruppe"))
+    device.text("{:^32}\n\n\n\n\n\n".format("FIN Telegram Gruppe"))
 
 
 def print_lipsum(device):
@@ -192,10 +192,10 @@ tree = ask_nasa_xml(uni_bib)
 print(format_nasa_tree(tree, 200))
 
 if platform.system() == 'Linux':
-    p = escpos.printer.File(u'/dev/usb/lp1')
+    p = escpos.printer.Usb(0x0456, 0x0808, in_ep=0x81, out_ep=0x03)
+    #p = escpos.printer.File(u'/dev/usb/lp0')
 else:
     p = escpos.printer.Dummy()  # does not work on windows :(
-    # p = escpos.printer.Usb(0x0456, 0x0808, in_ep=0x81, out_ep=0x03)
 
 p.charcode("USA")
 
