@@ -7,6 +7,8 @@ import math
 import re
 import xml.etree.ElementTree
 import platform
+import os
+import json
 
 askan_pl = 5254
 uni_bib = 7482
@@ -186,17 +188,25 @@ def print_lipsum(device):
 
 # b = bearing(52.140357, 11.646514, 52.137912, 11.650973)
 # print(bearing_str(b))
-obj = ask_nasa(uni_bib)
-print(format_nasa_obj(obj, 200))
-tree = ask_nasa_xml(uni_bib)
-print(format_nasa_tree(tree, 200))
+# obj = ask_nasa(uni_bib)
+# print(format_nasa_obj(obj, 200))
+# tree = ask_nasa_xml(uni_bib)
+# print(format_nasa_tree(tree, 200))
 
+location_db = json.load(open('magdeburg-db.json'))
 if platform.system() == 'Linux':
     p = escpos.printer.Usb(0x0456, 0x0808, in_ep=0x81, out_ep=0x03)
-    #p = escpos.printer.File(u'/dev/usb/lp0')
+    # p = escpos.printer.File(u'/dev/usb/lp0')
 else:
     p = escpos.printer.Dummy()  # does not work on windows :(
 
 p.charcode("USA")
 
-print_fin_telegram_qr(p)
+# print_fin_telegram_qr(p)
+# print_cyberband(p,20)
+
+# p.text("{:^32}".format("Mullvad Konto"))
+# p.text("{:^32}\n\n\n\n\n\n".format("8441 6558 9986 4981"))
+
+# p.image("/home/max/Bilder/Screenshot_20180327_015534.png")
+# p.text("\n\n\n\n\n\n")
