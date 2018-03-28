@@ -14,6 +14,8 @@ askan_pl = 5254
 uni_bib = 7482
 hassel = 7330
 
+location_db = json.load(open('magdeburg-db.json'))
+
 
 # https://www.movable-type.co.uk/scripts/latlong.html
 def bearing(lat1, lon1, lat2, lon2):
@@ -28,7 +30,7 @@ def bearing(lat1, lon1, lat2, lon2):
 
 def bearing_str(bearing):
     bearing = bearing % 360
-    if 337.5 <= bearing < 22.5:
+    if 337.5 <= bearing or bearing < 22.5:
         return "N"
     if 22.5 <= bearing < 67.5:
         return "NO"
@@ -85,6 +87,7 @@ def format_nasa_tree(tree, count=10):
     tree.remove(station_element)
     assert station_element.tag == "St"
     station_name = station_element.attrib['name']
+    station_nr = station_element.attrib['evaId']
     station_name = station_name[station_name.find(',') + 2:]  # cuts "Magdeburg, "
     result = "{:^32}\n".format(station_name)
     i = 0
@@ -99,8 +102,15 @@ def format_nasa_tree(tree, count=10):
         product = elem.attrib['hafasname'][6:]
         station = elem.attrib['dir']
         time = elem.attrib['fpTime']
+        dirnr = elem.attrib['dirnr']
 
-        direction = "(NO)"
+        direction = "(ER)"
+        lat1 = int(location_db[station_nr]['lat']) * 1e-6
+        lat2 = int(location_db[dirnr]['lat']) * 1e-6
+        lon1 = int(location_db[station_nr]['lon']) * 1e-6
+        lon2 = int(location_db[dirnr]['lon']) * 1e-6
+
+        direction = "({:<2})".format(bearing_str(bearing(lat1, lon1, lat2, lon2)))
         # calculate maximum length of station name
         available_name_len = 32 - (2 + 2 + len(time) + len(direction))
 
@@ -190,10 +200,11 @@ def print_lipsum(device):
 # print(bearing_str(b))
 # obj = ask_nasa(uni_bib)
 # print(format_nasa_obj(obj, 200))
-# tree = ask_nasa_xml(uni_bib)
-# print(format_nasa_tree(tree, 200))
+for nr in {uni_bib, askan_pl, hassel}:
+    tree = ask_nasa_xml(nr)
+    print(format_nasa_tree(tree, 10))
 
-location_db = json.load(open('magdeburg-db.json'))
+
 if platform.system() == 'Linux':
     p = escpos.printer.Usb(0x0456, 0x0808, in_ep=0x81, out_ep=0x03)
     # p = escpos.printer.File(u'/dev/usb/lp0')
