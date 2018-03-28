@@ -9,6 +9,7 @@ import xml.etree.ElementTree
 import platform
 import os
 import json
+import time
 
 askan_pl = 5254
 uni_bib = 7482
@@ -49,21 +50,31 @@ def bearing_str(bearing):
 
 
 def ask_nasa(number):
-    base = "http://reiseauskunft.insa.de/bin/stboard.exe/dn?L=.vs_stb"
-    options = "&L=.vs_stb.vs_stb&boardType=dep&selectDate=today&productsFilter=0000011111&additionalTime=0&start=yes&requestType=0&maxJourneys=200&input="
-    con = urllib.request.urlopen(base + options + str(number)).read()[14:]
+    base = "http://reiseauskunft.insa.de/bin/stboard.exe/dn?L=.vs_stb" \
+           + "&L=.vs_stb.vs_stb&boardType=dep" \
+           + "&date=" + time.strftime("%d.%m.%y", time.localtime()) \
+           + "&time=" + time.strftime("%H:%M", time.localtime()) \
+           + "&productsFilter=11111111&additionalTime=0&start=yes&requestType=0&maxJourneys=200&input="
+    con = urllib.request.urlopen(base + str(number)).read()[14:]
     con = html.unescape(con.decode())
     obj = json.loads(con)
+    with open("{:d}_{:.20g}.json".format(number, time.time()), 'w') as outfile:
+        json.dump(obj, outfile)
     return obj
 
 
 def ask_nasa_xml(number):
-    base = "https://reiseauskunft.insa.de/bin/stboard.exe/dn?productsFilter=11111111&boardType=dep&disableEquivs=1&maxJourneys=200&selectdate=today&clientType=ANDROID&L=vs_java3&hcount=0&start=yes&input="
+    base = "https://reiseauskunft.insa.de/bin/stboard.exe/dn?productsFilter=11111111&boardType=dep" \
+           + "&disableEquivs=1&maxJourneys=200" \
+           + "&date=" + time.strftime("%d.%m.%y", time.localtime()) \
+           + "&time=" + time.strftime("%H:%M", time.localtime()) \
+           + "&clientType=ANDROID&L=vs_java3&hcount=0&start=yes&input="
     con = urllib.request.urlopen(base + str(number)).read()
     con = str(con.decode())
     regex = re.compile("<HIMMessage.*?<\/Journey>", re.DOTALL | re.MULTILINE)
     con = regex.sub("</Journey>", con)
 
+    '''
     con = con.replace("<b>", " ")
     con = con.replace("</b>", " ")
     con = con.replace("<u>", " ")
@@ -75,9 +86,12 @@ def ask_nasa_xml(number):
     con = con.replace(" <-", " &#x2190")
     con = con.replace(" <> ", " &#x2194 ")
     con = con.replace("\"Florian Geyer\"", "Florian Geyer")
+    '''
 
     con = html.unescape(con)
     tree = xml.etree.ElementTree.fromstring(con)
+    with open("{:d}_{:.20g}.xml".format(number, time.time()), 'w') as outfile:
+        outfile.write(con)
     return tree
 
 
@@ -148,17 +162,17 @@ def format_nasa_obj(obj, count=10):
         product = journey['pr'][6:].strip()
         station = journey['st'][10:].strip()
         time = journey['ti'].strip()
-        '''
+
         delay = "(+0)"
 
         # add delay minutes if available
         if obj['journey'][i]['rt'] and obj['journey'][i]['rt']['dlm'] is not None \
                 and int(obj['journey'][i]['rt']['dlm']) > 0:
             delay = "(+" + str(obj['journey'][i]['rt']['dlm']) + ")"
-        '''
-        direction = ""
+
+        # direction = ""
         # calculate maximum length of station name
-        available_name_len = 32 - (2 + 2 + len(time) + len(direction))
+        available_name_len = 32 - (2 + 2 + len(time) + len(delay))
 
         # shorten station name
         station = cut_at(station, ',')
@@ -166,7 +180,7 @@ def format_nasa_obj(obj, count=10):
         station = station[:available_name_len]
 
         # format string
-        string = "{:<2} {:<{l}} {}{}".format(product, station, time, direction, l=available_name_len)
+        string = "{:<2} {:<{l}} {}{}".format(product, station, time, delay, l=available_name_len)
         # print(string)
         result += string + '\n'
     return result
@@ -196,14 +210,11 @@ def print_lipsum(device):
     device.text(lipsum)
 
 
-# b = bearing(52.140357, 11.646514, 52.137912, 11.650973)
-# print(bearing_str(b))
-# obj = ask_nasa(uni_bib)
-# print(format_nasa_obj(obj, 200))
 for nr in {uni_bib, askan_pl, hassel}:
     tree = ask_nasa_xml(nr)
     print(format_nasa_tree(tree, 10))
-
+    obj = ask_nasa(uni_bib)
+    # print(format_nasa_obj(obj, 10))
 
 if platform.system() == 'Linux':
     p = escpos.printer.Usb(0x0456, 0x0808, in_ep=0x81, out_ep=0x03)
