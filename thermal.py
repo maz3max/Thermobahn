@@ -49,23 +49,30 @@ def bearing_str(bearing):
         return "NW"
 
 
-def ask_nasa(number):
+def ask_nasa(number, max_journeys=10, download_infoline=True):
     base = "http://reiseauskunft.insa.de/bin/stboard.exe/dn?L=.vs_stb" \
            + "&L=.vs_stb.vs_stb&boardType=dep" \
            + "&date=" + time.strftime("%d.%m.%y", time.localtime()) \
            + "&time=" + time.strftime("%H:%M", time.localtime()) \
-           + "&productsFilter=11111111&additionalTime=0&start=yes&requestType=0&maxJourneys=200&input="
+           + "&productsFilter=11111111&additionalTime=0&start=yes&requestType=0&" \
+           + "maxJourneys=" + str(max_journeys) + "&input="
     con = urllib.request.urlopen(base + str(number)).read()[14:]
     con = html.unescape(con.decode())
     obj = json.loads(con)
+    if download_infoline:
+        for journey in obj['journey']:
+            tinfoline_result = urllib.request.urlopen(journey['tinfoline']).read()
+            tinfoline_result = html.unescape(tinfoline_result.decode())
+            tinfoline_result = json.loads(tinfoline_result)
+            journey['tinfoline_result'] = tinfoline_result
     with open("{:d}_{:.20g}.json".format(number, time.time()), 'w') as outfile:
         json.dump(obj, outfile)
     return obj
 
 
-def ask_nasa_xml(number):
+def ask_nasa_xml(number, max_journeys=10):
     base = "https://reiseauskunft.insa.de/bin/stboard.exe/dn?productsFilter=11111111&boardType=dep" \
-           + "&disableEquivs=1&maxJourneys=200" \
+           + "&disableEquivs=1" + "maxJourneys=" + str(max_journeys) \
            + "&date=" + time.strftime("%d.%m.%y", time.localtime()) \
            + "&time=" + time.strftime("%H:%M", time.localtime()) \
            + "&clientType=ANDROID&L=vs_java3&hcount=0&start=yes&input="
@@ -96,6 +103,8 @@ def ask_nasa_xml(number):
 
 
 def format_nasa_tree(tree, count=10):
+    if tree.tag == 'Err':
+        return tree.attrib['text']
     tree = list(tree)
     station_element = tree[0]
     tree.remove(station_element)
@@ -211,9 +220,11 @@ def print_lipsum(device):
 
 
 for nr in {uni_bib, askan_pl, hassel}:
+    print("asking for xml nr.:" + str(nr))
     tree = ask_nasa_xml(nr)
-    print(format_nasa_tree(tree, 10))
-    obj = ask_nasa(uni_bib)
+    print("asking for json nr.:" + str(nr))
+    obj = ask_nasa(nr)
+    # print(format_nasa_tree(tree, 10))
     # print(format_nasa_obj(obj, 10))
 
 if platform.system() == 'Linux':
