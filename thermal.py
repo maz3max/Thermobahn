@@ -154,25 +154,42 @@ def format_nasa_obj(obj, count=10):
     station_name = station_name[station_name.find(',') + 2:]
     result = "{:^32}\n".format(station_name)
     # result += "Nr Name           Zeit(Richtung)\n"
-
+    station_nr = obj['stationEvaId']
     maxJ = obj['maxJ']  # count of journeys
     count = max(1, min(count - 1, maxJ - 1))
     i = 0
     for journey in obj['journey']:
-        i += 1
         if i >= count:
             break
         if journey['rt'] and journey['rt']['status'] is not None:
-            print(journey)
+            # print(journey)
             print("ERROR, Status is: " + journey['rt']['status'])
-            count += 1
+            count = (count + 1) % maxJ
             continue
         # read data from object
         product = journey['pr'][6:].strip()
         station = journey['st'][10:].strip()
         time = journey['ti'].strip()
 
+        lat1 = location_db[station_nr]['lat']
+        lon1 = location_db[station_nr]['lon']
+        lat2 = lat1
+        lon2 = lon1
+        stops = journey['tinfoline_result']['stops']
+        for stop in stops:
+            if int(stop['y']) == lat1 and int(stop['x']) == lon1:
+                lat2 = int(stops[int(stop['id']) + 1]['y'])
+                lon2 = int(stops[int(stop['id']) + 1]['x'])
+                location_db[station_nr]['bno'] = stop['bno']
+
         delay = "(+0)"
+
+        lat1 = int(lat1) * 1e-6
+        lat2 = int(lat2) * 1e-6
+        lon1 = int(lon1) * 1e-6
+        lon2 = int(lon2) * 1e-6
+
+        direction = "({:<2})".format(bearing_str(bearing(lat1, lon1, lat2, lon2)))
 
         # add delay minutes if available
         if obj['journey'][i]['rt'] and obj['journey'][i]['rt']['dlm'] is not None \
@@ -181,7 +198,7 @@ def format_nasa_obj(obj, count=10):
 
         # direction = ""
         # calculate maximum length of station name
-        available_name_len = 32 - (2 + 2 + len(time) + len(delay))
+        available_name_len = 32 - (2 + 2 + len(time) + len(direction))
 
         # shorten station name
         station = cut_at(station, ',')
@@ -189,9 +206,11 @@ def format_nasa_obj(obj, count=10):
         station = station[:available_name_len]
 
         # format string
-        string = "{:<2} {:<{l}} {}{}".format(product, station, time, delay, l=available_name_len)
+        string = "{:<2} {:<{l}} {}{}".format(product, station, time, direction, l=available_name_len)
         # print(string)
         result += string + '\n'
+
+        i += 1
     return result
 
 
@@ -214,19 +233,26 @@ def print_fin_telegram_qr(device):
     device.text("{:^32}\n\n\n\n\n\n".format("FIN Telegram Gruppe"))
 
 
+def print_n39_qr(device):
+    device.qr("http://www.netz39.de", escpos.constants.QR_ECLEVEL_H, size=12)
+    device.text("{:^32}\n\n\n\n\n\n".format("Netz39 Hackerspace"))
+
+
 def print_lipsum(device):
     lipsum = "Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet.   \r\n\r\nDuis autem vel eum iriure dolor in hendrerit in vulputate velit esse molestie consequat, vel illum dolore eu feugiat nulla facilisis at vero eros et accumsan et iusto odio dignissim qui blandit praesent luptatum zzril delenit augue duis dolore te feugait nulla facilisi. Lorem ipsum dolor sit amet, consectetuer adipiscing elit, sed diam nonummy nibh euismod tincidunt ut laoreet dolore magna aliquam erat volutpat.   \r\n\r\nUt wisi enim ad minim veniam, quis nostrud exerci tation ullamcorper suscipit lobortis nisl ut aliquip ex ea commodo consequat. Duis autem vel eum iriure dolor in hendrerit in vulputate velit esse molestie consequat, vel illum dolore eu feugiat nulla facilisis at vero eros et accumsan et iusto odio dignissim qui blandit praesent luptatum zzril delenit augue duis dolore te feugait nulla facilisi.   \r\n\r\nNam liber tempor cum soluta nobis eleifend option congue nihil imperdiet doming id quod mazim placerat facer possim assum. Lorem ipsum dolor sit amet, consectetuer adipiscing elit, sed diam nonummy nibh euismod tincidunt ut laoreet dolore magna aliquam erat volutpat. Ut wisi enim ad minim veniam, quis nostrud exerci tation ullamcorper suscipit lobortis nisl ut aliquip ex ea commodo consequat.   \r\n\r\nDuis autem vel eum iriure dolor in hendrerit in vulputate velit esse molestie consequat, vel illum dolore eu feugiat nulla facilisis.   \r\n\r\nAt vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, At accusam aliquyam diam diam dolore dolores duo eirmod eos erat, et nonumy sed tempor et et invidunt justo labore Stet clita ea et gubergren, kasd magna no rebum. sanctus sea sed takimata ut vero voluptua. est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat.   \r\n\r\nConsetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus.   \r\n\r\nLorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet.   \r\n\r\nDuis autem vel eum iriure dolor in hendrerit in vulputate velit esse molestie consequat, vel illum dolore eu feugiat nulla facilisis at vero eros et accumsan et iusto odio dignissim qui blandit praesent luptatum zzril delenit augue duis dolore te feugait nulla facilisi. Lorem ipsum dolor sit amet, consectetuer adipiscing elit, sed diam nonummy nibh euismod tincidunt ut laoreet dolore magna aliquam erat volutpat.   \r\n\r\nUt wisi enim ad minim veniam, quis nostrud exerci tation ullamcorper suscipit lobortis nisl ut aliquip ex ea commodo consequat. Duis autem vel eum iriure dolor in hendrerit in vulputate velit esse molestie consequat, vel illum dolore eu feugiat nulla facilisis at vero eros et accumsan et iusto odio dignissim qui blandit praesent luptatum zzril delenit augue duis dolore te feugait nulla facilisi.   \r\n\r\nNam liber tempor cum soluta nobis eleifend option congue nihil imperdiet doming id quod mazim placerat facer possim assum. Lorem ipsum dolor sit amet, consectetuer adipiscing elit, sed diam nonummy nibh euismod tincidunt ut laoreet dolore magna aliquam erat volutpat. Ut wisi enim ad minim veniam, quis nostrud exerci tation ullamcorper suscipit lobortis nisl ut aliquip ex ea commodo"
     device.text(lipsum)
 
 
 for nr in {uni_bib, askan_pl, hassel}:
-    print("asking for xml nr.:" + str(nr))
+    # print("asking for xml nr.:" + str(nr))
     tree = ask_nasa_xml(nr)
-    print("asking for json nr.:" + str(nr))
+    # print("asking for json nr.:" + str(nr))
     obj = ask_nasa(nr)
     # print(format_nasa_tree(tree, 10))
-    # print(format_nasa_obj(obj, 10))
+    print(format_nasa_obj(obj, 10))
 
+with open('magdeburg-db.json', 'w') as outfile:
+    json.dump(location_db, outfile)
 if platform.system() == 'Linux':
     p = escpos.printer.Usb(0x0456, 0x0808, in_ep=0x81, out_ep=0x03)
     # p = escpos.printer.File(u'/dev/usb/lp0')
@@ -234,12 +260,12 @@ else:
     p = escpos.printer.Dummy()  # does not work on windows :(
 
 p.charcode("USA")
+p.text(format_nasa_obj(ask_nasa(hassel, 20), 20))
 
-# print_fin_telegram_qr(p)
-# print_cyberband(p,20)
+# print_n39_qr(p)# print_cyberband(p,20)
 
 # p.text("{:^32}".format("Mullvad Konto"))
 # p.text("{:^32}\n\n\n\n\n\n".format("8441 6558 9986 4981"))
 
 # p.image("/home/max/Bilder/Screenshot_20180327_015534.png")
-# p.text("\n\n\n\n\n\n")
+p.text("\n\n\n\n\n\n")
